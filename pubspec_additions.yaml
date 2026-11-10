@@ -1,0 +1,19 @@
+# Merge this block into the `flutter:` section of the pubspec.yaml created by `flutter create`.
+flutter:
+  uses-material-design: true
+  fonts:
+    - family: PlayfairDisplay
+      fonts:
+        - asset: assets/fonts/PlayfairDisplay/PlayfairDisplay-Variable.ttf
+        - asset: assets/fonts/PlayfairDisplay/PlayfairDisplay-Italic-Variable.ttf
+          style: italic
+    - family: IBMPlexMono
+      fonts:
+        - asset: assets/fonts/IBMPlexMono/IBMPlexMono-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/IBMPlexMono/IBMPlexMono-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/IBMPlexMono/IBMPlexMono-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/IBMPlexMono/IBMPlexMono-Bold.ttf
+          weight: 700
