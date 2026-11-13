@@ -3,12 +3,14 @@ import "dart:async";
 import "package:flutter/material.dart";
 import "package:go_router/go_router.dart";
 
+import "../../../../core/di/injection.dart";
 import "../../../../core/router/app_routes.dart";
 import "../../../../core/theme/theme_extensions.dart";
 import "../../../../core/theme/tokens/app_spacing.dart";
 import "../../../../core/widgets/app_button.dart";
 import "../../../../core/widgets/app_text_field.dart";
 import "../auth_validators.dart";
+import "../cubit/auth_cubit.dart";
 import "../widgets/auth_links.dart";
 import "../widgets/auth_notice.dart";
 import "../widgets/auth_scaffold.dart";
@@ -49,6 +51,26 @@ class _RecoveryPageState extends State<RecoveryPage> {
 
     FocusScope.of(context).unfocus();
     setState(() => _submitting = true);
+    if (sl.isRegistered<AuthCubit>()) {
+      await sl<AuthCubit>().sendPasswordResetEmail(_email.text);
+      if (!mounted) return;
+      final result = sl<AuthCubit>().state;
+      setState(() => _submitting = false);
+      if (result.status == AuthActionStatus.success) {
+        setState(() {
+          _sent = true;
+          _resendSeconds = _resendCooldown;
+        });
+        _startCountdown();
+      } else if (result.message != null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(result.message!)));
+      }
+      return;
+    }
+
+    // Keeps isolated presentation previews usable without app dependency setup.
     await Future<void>.delayed(const Duration(milliseconds: 650));
     if (!mounted) return;
     setState(() {
@@ -74,6 +96,10 @@ class _RecoveryPageState extends State<RecoveryPage> {
   }
 
   void _resend() {
+    if (sl.isRegistered<AuthCubit>()) {
+      _send();
+      return;
+    }
     setState(() => _resendSeconds = _resendCooldown);
     _startCountdown();
   }

@@ -1,6 +1,12 @@
+import "package:cloud_firestore/cloud_firestore.dart";
+import "package:firebase_auth/firebase_auth.dart";
 import "package:get_it/get_it.dart";
 import "package:go_router/go_router.dart";
+import "package:google_sign_in/google_sign_in.dart";
 
+import "../../features/auth/data/firebase_auth_repository.dart";
+import "../../features/auth/domain/repositories/auth_repository.dart";
+import "../../features/auth/presentation/cubit/auth_cubit.dart";
 import "../../features/onboarding/data/onboarding_local_datasource.dart";
 import "../../features/onboarding/data/onboarding_repository_impl.dart";
 import "../../features/onboarding/domain/repositories/onboarding_repository.dart";
@@ -18,6 +24,17 @@ Future<void> configureDependencies() async {
   final store = await HiveKeyValueStore.open();
   sl
     ..registerSingleton<KeyValueStore>(store)
+    ..registerSingleton<FirebaseAuth>(FirebaseAuth.instance)
+    ..registerSingleton<FirebaseFirestore>(FirebaseFirestore.instance)
+    ..registerSingleton<GoogleSignIn>(GoogleSignIn.instance)
+    ..registerLazySingleton<AuthRepository>(
+      () => FirebaseAuthRepository(
+        sl<FirebaseAuth>(),
+        sl<FirebaseFirestore>(),
+        sl<GoogleSignIn>(),
+      ),
+    )
+    ..registerLazySingleton<AuthCubit>(() => AuthCubit(sl<AuthRepository>()))
     ..registerSingleton<ThemeCubit>(ThemeCubit(sl<KeyValueStore>()))
     ..registerLazySingleton<SettingsCubit>(
       () => SettingsCubit(sl<KeyValueStore>()),
@@ -38,6 +55,9 @@ Future<void> configureDependencies() async {
       () => OnboardingCubit(sl<CompleteOnboarding>()),
     )
     ..registerLazySingleton<GoRouter>(
-      () => buildRouter(onboarded: sl<IsOnboardingComplete>()()),
+      () => buildRouter(
+        onboarded: sl<IsOnboardingComplete>()(),
+        authRepository: sl<AuthRepository>(),
+      ),
     );
 }

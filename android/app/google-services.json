@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "117543076145",
+    "project_id": "thulian-a6f68",
+    "storage_bucket": "thulian-a6f68.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:117543076145:android:3d55e61eef36bad5157010",
+        "android_client_info": {
+          "package_name": "com.Thulian.thulian"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "117543076145-seps029ssohgih9noqes0melaa54afo0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.Thulian.thulian",
+            "certificate_hash": "b2e36096b28276e1567d1c6732e8c09a1a61fc19"
+          }
+        },
+        {
+          "client_id": "117543076145-jfhkop3ve6lbr4ehi45ihn2bh29k0me9.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBUFfEDfL_Ce3j8fDxIEkYHMJHM30gu-Uo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "117543076145-jfhkop3ve6lbr4ehi45ihn2bh29k0me9.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "117543076145-bv8drb8dk9kcmcra2sajbr87aim02u9r.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.Thulian.thulian"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -16,6 +16,7 @@ import "../../../../core/widgets/section_header.dart";
 import "../../../../core/widgets/segmented_choice.dart";
 import "../../../profile/data/profile_mock_data.dart";
 import "../../domain/entities/app_settings.dart";
+import "../../../auth/presentation/cubit/auth_cubit.dart";
 import "../cubit/settings_cubit.dart";
 import "../widgets/settings_row.dart";
 
@@ -48,6 +49,17 @@ class _SettingsView extends StatelessWidget {
       confirmLabel: "Sign out",
     );
     if (confirmed != true || !context.mounted) return;
+    if (sl.isRegistered<AuthCubit>()) {
+      await sl<AuthCubit>().signOut();
+      if (!context.mounted) return;
+      final result = sl<AuthCubit>().state;
+      if (result.status == AuthActionStatus.failure) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result.message ?? "Sign-out failed.")),
+        );
+        return;
+      }
+    }
     context.go(AppRoutes.authSignIn);
   }
 

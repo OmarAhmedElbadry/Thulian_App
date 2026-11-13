@@ -1,12 +1,14 @@
 import "package:flutter/material.dart";
 import "package:go_router/go_router.dart";
 
+import "../../../../core/di/injection.dart";
 import "../../../../core/router/app_routes.dart";
 import "../../../../core/theme/theme_extensions.dart";
 import "../../../../core/theme/tokens/app_spacing.dart";
 import "../../../../core/widgets/app_button.dart";
 import "../../../../core/widgets/app_text_field.dart";
 import "../auth_validators.dart";
+import "../cubit/auth_cubit.dart";
 import "../widgets/auth_links.dart";
 import "../widgets/auth_scaffold.dart";
 import "../widgets/or_divider.dart";
@@ -50,6 +52,23 @@ class _SignInPageState extends State<SignInPage> {
 
     FocusScope.of(context).unfocus();
     setState(() => _submitting = true);
+    if (sl.isRegistered<AuthCubit>()) {
+      await sl<AuthCubit>().signIn(
+        email: _email.text,
+        password: _password.text,
+      );
+      if (!mounted) return;
+      final result = sl<AuthCubit>().state;
+      setState(() => _submitting = false);
+      if (result.status == AuthActionStatus.success) {
+        context.go(AppRoutes.home);
+      } else {
+        _showAuthError(result.message);
+      }
+      return;
+    }
+
+    // Keeps isolated presentation previews usable without app dependency setup.
     await Future<void>.delayed(const Duration(milliseconds: 700));
     if (!mounted) return;
     setState(() => _submitting = false);
@@ -60,10 +79,30 @@ class _SignInPageState extends State<SignInPage> {
 
   void _openRecovery() => context.push(AppRoutes.authRecover);
 
-  void _google() {
+  Future<void> _google() async {
+    if (sl.isRegistered<AuthCubit>()) {
+      setState(() => _submitting = true);
+      await sl<AuthCubit>().signInWithGoogle();
+      if (!mounted) return;
+      final result = sl<AuthCubit>().state;
+      setState(() => _submitting = false);
+      if (result.status == AuthActionStatus.success) {
+        context.go(AppRoutes.home);
+      } else {
+        _showAuthError(result.message);
+      }
+      return;
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("Google sign-in arrives in Phase 3.")),
     );
+  }
+
+  void _showAuthError(String? message) {
+    if (message == null) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
