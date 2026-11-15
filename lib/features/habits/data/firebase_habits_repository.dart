@@ -41,13 +41,6 @@ class FirebaseHabitsRepository implements HabitsRepository {
     final data = _draftData(draft)
       ..addAll({
         "archived": false,
-        "stats": const {
-          "streakDays": 0,
-          "bestStreak": 0,
-          "totalCompletions": 0,
-          "completionRate": 0,
-        },
-        "statsUpdatedAt": FieldValue.serverTimestamp(),
         "createdAt": FieldValue.serverTimestamp(),
         "updatedAt": FieldValue.serverTimestamp(),
       });
@@ -111,7 +104,6 @@ class FirebaseHabitsRepository implements HabitsRepository {
       } else {
         transaction.set(completion, {
           "dateKey": dateKey,
-          "timezoneOffsetMinutes": DateTime.now().timeZoneOffset.inMinutes,
           "completedAt": FieldValue.serverTimestamp(),
         });
       }

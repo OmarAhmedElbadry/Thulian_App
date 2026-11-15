@@ -52,7 +52,7 @@ class HabitRow extends StatelessWidget {
                 child: Semantics(
                   button: onTap != null,
                   label: habit.title,
-                  hint: "Streak ${habit.streakDays} days, ${habit.subtitle}",
+                  hint: habit.subtitle,
                   child: InkWell(
                     onTap: onTap,
                     child: Column(
@@ -75,20 +75,10 @@ class HabitRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppSpacing.s),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  CompletionDots(
-                    completions: habit.weekCompletions,
-                    todayIndex: todayIndex,
-                    onToggleToday: onToggleToday,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    "STR ${habit.streakDays.toString().padLeft(2, "0")}",
-                    style: t.metaSmall.copyWith(color: c.inkMuted),
-                  ),
-                ],
+              CompletionDots(
+                completions: habit.weekCompletions,
+                todayIndex: todayIndex,
+                onToggleToday: onToggleToday,
               ),
             ],
           ),

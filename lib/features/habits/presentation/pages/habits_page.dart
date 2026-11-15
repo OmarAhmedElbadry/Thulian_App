@@ -162,7 +162,6 @@ class _HabitsPageState extends State<HabitsPage> {
                             ),
                             const SizedBox(height: AppSpacing.s),
                             HabitStatsRow(
-                              bestStreak: habit.bestStreak,
                               totalCompletions: habit.totalCompletions,
                               completionRate: habit.completionRate,
                               onEdit: edit,
@@ -243,7 +242,26 @@ class _HabitsPageState extends State<HabitsPage> {
       (index) =>
           completedDays.contains(_dateKey(start.add(Duration(days: index)))),
     );
-    return habit.copyWith(weekCompletions: week, historyGrid: history);
+    var scheduled = 0;
+    var completedScheduled = 0;
+    for (var index = 0; index < 28; index++) {
+      final date = start.add(Duration(days: index));
+      final isScheduled =
+          habit.frequency == HabitFrequency.daily ||
+          habit.weeklyDays.contains(date.weekday);
+      if (!isScheduled || date.isAfter(today)) continue;
+      scheduled++;
+      if (completedDays.contains(_dateKey(date))) completedScheduled++;
+    }
+    final completionRate = scheduled == 0
+        ? 0
+        : (completedScheduled * 100 / scheduled).round();
+    return habit.copyWith(
+      weekCompletions: week,
+      historyGrid: history,
+      totalCompletions: completions.length,
+      completionRate: completionRate,
+    );
   }
 
   String _dateKey(DateTime date) =>

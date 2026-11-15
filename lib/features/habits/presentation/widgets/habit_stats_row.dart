@@ -4,17 +4,15 @@ import "../../../../core/theme/theme_extensions.dart";
 import "../../../../core/theme/tokens/app_spacing.dart";
 import "../../../../core/widgets/app_button.dart";
 
-/// Bottom stat row for the expanded habit: BEST / TOTAL / RATE + EDIT button.
+/// Bottom stat row for the expanded habit: TOTAL / RATE + EDIT button.
 class HabitStatsRow extends StatelessWidget {
   const HabitStatsRow({
     super.key,
-    required this.bestStreak,
     required this.totalCompletions,
     required this.completionRate,
     this.onEdit,
   });
 
-  final int bestStreak;
   final int totalCompletions;
   final int completionRate;
   final VoidCallback? onEdit;
@@ -27,8 +25,6 @@ class HabitStatsRow extends StatelessWidget {
         Expanded(
           child: Row(
             children: [
-              _StatColumn(label: "BEST", value: "$bestStreak"),
-              const SizedBox(width: AppSpacing.xl),
               _StatColumn(label: "TOTAL", value: "$totalCompletions"),
               const SizedBox(width: AppSpacing.xl),
               _StatColumn(label: "RATE", value: "$completionRate%"),

@@ -112,20 +112,15 @@ service cloud.firestore {
     function validCompletion(data, dateKey) {
       return data.keys().hasOnly([
           'dateKey',
-          'timezoneOffsetMinutes',
           'completedAt'
         ])
         && data.keys().hasAll([
           'dateKey',
-          'timezoneOffsetMinutes',
           'completedAt'
         ])
         && data.dateKey == dateKey
         && dateKey.size() == 10
         && dateKey.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
-        && data.timezoneOffsetMinutes is int
-        && data.timezoneOffsetMinutes >= -720
-        && data.timezoneOffsetMinutes <= 840
         && data.completedAt is timestamp;
     }
 
@@ -154,12 +149,7 @@ service cloud.firestore {
           && validHabit(request.resource.data)
           && request.resource.data.createdAt == request.time
           && request.resource.data.updatedAt == request.time
-          && validStats(request.resource.data.stats)
-          && request.resource.data.stats.streakDays == 0
-          && request.resource.data.stats.bestStreak == 0
-          && request.resource.data.stats.totalCompletions == 0
-          && request.resource.data.stats.completionRate == 0
-          && request.resource.data.statsUpdatedAt == request.time;
+          && !request.resource.data.keys().hasAny(['stats', 'statsUpdatedAt']);
         allow update: if verifiedUser(userId)
           && validHabit(request.resource.data)
           && request.resource.data.createdAt == resource.data.createdAt
