@@ -9,10 +9,13 @@ import "../../features/auth/domain/repositories/auth_repository.dart";
 import "../../features/auth/presentation/pages/create_account_page.dart";
 import "../../features/auth/presentation/pages/recovery_page.dart";
 import "../../features/auth/presentation/pages/sign_in_page.dart";
+import "../../features/auth/presentation/pages/verify_email_page.dart";
 import "../../features/dashboard/presentation/pages/home_page.dart";
 import "../../features/habits/presentation/pages/habits_page.dart";
+import "../../features/habits/presentation/pages/create_habit_page.dart";
 import "../../features/notes/presentation/pages/notes_page.dart";
 import "../../features/notes/presentation/pages/note_editor_page.dart";
+import "../../features/habits/domain/entities/habit_entry.dart";
 import "../../features/onboarding/presentation/pages/onboarding_page.dart";
 import "../../features/profile/presentation/pages/profile_page.dart";
 import "../../features/settings/presentation/pages/settings_page.dart";
@@ -32,15 +35,22 @@ GoRouter buildRouter({
     initialLocation: onboarded ? AppRoutes.home : AppRoutes.onboarding,
     refreshListenable: authRefresh,
     redirect: (context, state) {
-      final signedIn = authRepository.currentUser != null;
+      final user = authRepository.currentUser;
+      final signedIn = user != null;
       final location = state.matchedLocation;
       final atOnboarding = location == AppRoutes.onboarding;
       final atAuth =
           location == AppRoutes.authSignIn ||
           location == AppRoutes.authCreateAccount ||
-          location == AppRoutes.authRecover;
+          location == AppRoutes.authRecover ||
+          location == AppRoutes.authVerifyEmail;
 
       if (!signedIn && !atOnboarding && !atAuth) return AppRoutes.authSignIn;
+      if (user != null && !user.emailVerified) {
+        return location == AppRoutes.authVerifyEmail
+            ? null
+            : AppRoutes.authVerifyEmail;
+      }
       if (signedIn && (atOnboarding || atAuth)) return AppRoutes.home;
       return null;
     },
@@ -67,8 +77,25 @@ GoRouter buildRouter({
             JournalPage<void>(key: state.pageKey, child: const RecoveryPage()),
       ),
       GoRoute(
+        path: AppRoutes.authVerifyEmail,
+        pageBuilder: (context, state) => JournalPage<void>(
+          key: state.pageKey,
+          child: const VerifyEmailPage(),
+        ),
+      ),
+      GoRoute(
         path: AppRoutes.noteNew,
         builder: (context, state) => const NoteEditorPage(noteId: "new"),
+      ),
+      GoRoute(
+        path: AppRoutes.habitNew,
+        builder: (context, state) => const CreateHabitPage(),
+      ),
+      GoRoute(
+        path: "/habits/:habitId/edit",
+        builder: (context, state) => CreateHabitPage(
+          habit: state.extra is HabitEntry ? state.extra! as HabitEntry : null,
+        ),
       ),
       GoRoute(
         path: "/notes/:noteId",

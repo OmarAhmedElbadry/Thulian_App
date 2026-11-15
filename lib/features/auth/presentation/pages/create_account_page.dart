@@ -80,7 +80,7 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
       final result = sl<AuthCubit>().state;
       setState(() => _submitting = false);
       if (result.status == AuthActionStatus.success) {
-        context.go(AppRoutes.home);
+        context.go(AppRoutes.authVerifyEmail);
       } else if (result.message != null) {
         ScaffoldMessenger.of(
           context,

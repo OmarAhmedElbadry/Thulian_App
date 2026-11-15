@@ -34,6 +34,36 @@ class AuthCubit extends Cubit<AuthState> {
   Future<void> sendPasswordResetEmail(String email) =>
       _run(() => _repository.sendPasswordResetEmail(email));
 
+  Future<void> sendEmailVerification() =>
+      _run(_repository.sendEmailVerification);
+
+  Future<void> checkEmailVerification() async {
+    emit(const AuthState(status: AuthActionStatus.submitting));
+    try {
+      await _repository.reloadCurrentUser();
+      if (_repository.currentUser?.emailVerified == true) {
+        emit(const AuthState(status: AuthActionStatus.success));
+      } else {
+        emit(
+          const AuthState(
+            status: AuthActionStatus.failure,
+            message:
+                "Your email is not verified yet. Check your inbox and try again.",
+          ),
+        );
+      }
+    } on AuthFailure catch (error) {
+      emit(AuthState(status: AuthActionStatus.failure, message: error.message));
+    } catch (_) {
+      emit(
+        const AuthState(
+          status: AuthActionStatus.failure,
+          message: "We couldn't check your email yet. Please try again.",
+        ),
+      );
+    }
+  }
+
   Future<void> signOut() => _run(_repository.signOut);
 
   void reset() => emit(const AuthState());

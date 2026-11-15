@@ -7,6 +7,8 @@ import "package:google_sign_in/google_sign_in.dart";
 import "../../features/auth/data/firebase_auth_repository.dart";
 import "../../features/auth/domain/repositories/auth_repository.dart";
 import "../../features/auth/presentation/cubit/auth_cubit.dart";
+import "../../features/habits/data/firebase_habits_repository.dart";
+import "../../features/habits/domain/repositories/habits_repository.dart";
 import "../../features/onboarding/data/onboarding_local_datasource.dart";
 import "../../features/onboarding/data/onboarding_repository_impl.dart";
 import "../../features/onboarding/domain/repositories/onboarding_repository.dart";
@@ -27,6 +29,10 @@ Future<void> configureDependencies() async {
     ..registerSingleton<FirebaseAuth>(FirebaseAuth.instance)
     ..registerSingleton<FirebaseFirestore>(FirebaseFirestore.instance)
     ..registerSingleton<GoogleSignIn>(GoogleSignIn.instance)
+    ..registerLazySingleton<HabitsRepository>(
+      () =>
+          FirebaseHabitsRepository(sl<FirebaseFirestore>(), sl<FirebaseAuth>()),
+    )
     ..registerLazySingleton<AuthRepository>(
       () => FirebaseAuthRepository(
         sl<FirebaseAuth>(),

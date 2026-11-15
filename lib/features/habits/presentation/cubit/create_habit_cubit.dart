@@ -4,6 +4,7 @@ import "package:flutter_bloc/flutter_bloc.dart";
 import "../../data/habits_mock_store.dart";
 import "../../domain/entities/habit_draft.dart";
 import "../../domain/entities/habit_entry.dart";
+import "../../domain/repositories/habits_repository.dart";
 
 @immutable
 class CreateHabitState {
@@ -14,6 +15,8 @@ class CreateHabitState {
     this.saved = false,
     this.savedTick = 0,
     this.filed = false,
+    this.filing = false,
+    this.errorMessage,
   });
 
   final HabitDraft draft;
@@ -31,6 +34,8 @@ class CreateHabitState {
   final int savedTick;
 
   final bool filed;
+  final bool filing;
+  final String? errorMessage;
 
   CreateHabitState copyWith({
     HabitDraft? draft,
@@ -39,6 +44,8 @@ class CreateHabitState {
     bool? saved,
     int? savedTick,
     bool? filed,
+    bool? filing,
+    String? errorMessage,
   }) {
     return CreateHabitState(
       draft: draft ?? this.draft,
@@ -47,21 +54,31 @@ class CreateHabitState {
       saved: saved ?? this.saved,
       savedTick: savedTick ?? this.savedTick,
       filed: filed ?? this.filed,
+      filing: filing ?? this.filing,
+      errorMessage: errorMessage,
     );
   }
 }
 
 class CreateHabitCubit extends Cubit<CreateHabitState> {
-  CreateHabitCubit(HabitsMockStore store)
-    : _store = store,
-      super(
-        CreateHabitState(
-          draft: store.draft.value ?? const HabitDraft(),
-          saved: store.draft.value != null,
-        ),
-      );
+  CreateHabitCubit(
+    HabitsMockStore store, {
+    this.repository,
+    HabitEntry? initialHabit,
+  }) : _store = store,
+       _habitId = initialHabit?.id,
+       super(
+         CreateHabitState(
+           draft: initialHabit != null
+               ? HabitDraft.fromEntry(initialHabit)
+               : store.draft.value ?? const HabitDraft(),
+           saved: initialHabit == null && store.draft.value != null,
+         ),
+       );
 
   final HabitsMockStore _store;
+  final String? _habitId;
+  final HabitsRepository? repository;
 
   void _edit(HabitDraft draft) {
     emit(state.copyWith(draft: draft, dirty: true));
@@ -116,5 +133,35 @@ class CreateHabitCubit extends Cubit<CreateHabitState> {
     _store.file(state.draft);
     emit(state.copyWith(filed: true, dirty: false));
     return true;
+  }
+
+  Future<void> fileHabit() async {
+    if (!state.draft.isValid) {
+      emit(state.copyWith(showNameError: true));
+      return;
+    }
+    final habitsRepository = repository;
+    if (habitsRepository == null) {
+      file();
+      return;
+    }
+    emit(state.copyWith(filing: true, errorMessage: null));
+    try {
+      if (_habitId == null) {
+        await habitsRepository.createHabit(state.draft);
+      } else {
+        await habitsRepository.updateHabit(_habitId, state.draft);
+      }
+      _store.clearDraft();
+      emit(state.copyWith(filing: false, filed: true, dirty: false));
+    } catch (_) {
+      emit(
+        state.copyWith(
+          filing: false,
+          errorMessage:
+              "We couldn't save this habit. Check your connection and try again.",
+        ),
+      );
+    }
   }
 }

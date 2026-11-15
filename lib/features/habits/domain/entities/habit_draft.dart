@@ -15,6 +15,15 @@ class HabitDraft {
     this.targetMinutes = 15,
   });
 
+  factory HabitDraft.fromEntry(HabitEntry entry) => HabitDraft(
+    name: entry.title,
+    category: entry.category,
+    frequency: entry.frequency,
+    weeklyDays: List<int>.of(entry.weeklyDays),
+    reminderMinutes: entry.reminderMinutes,
+    targetMinutes: entry.targetMinutes,
+  );
+
   static const minTarget = 5;
   static const maxTarget = 240;
   static const targetStep = 5;
@@ -31,8 +40,11 @@ class HabitDraft {
 
   bool get hasName => name.trim().isNotEmpty;
 
+  bool get nameIsValid => hasName && name.trim().length <= 80;
+
   bool get isValid =>
-      hasName && (frequency == HabitFrequency.daily || weeklyDays.isNotEmpty);
+      nameIsValid &&
+      (frequency == HabitFrequency.daily || weeklyDays.isNotEmpty);
 
   HabitDraft copyWith({
     String? name,

@@ -2,6 +2,7 @@ import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 import "package:go_router/go_router.dart";
 
+import "../../../../core/di/injection.dart";
 import "../../../../core/router/app_routes.dart";
 import "../../../../core/theme/theme_extensions.dart";
 import "../../../../core/theme/tokens/app_spacing.dart";
@@ -19,6 +20,7 @@ import "../../../../core/widgets/time_wheel_sheet.dart";
 import "../../data/habits_mock_store.dart";
 import "../../domain/entities/habit_draft.dart";
 import "../../domain/entities/habit_entry.dart";
+import "../../domain/repositories/habits_repository.dart";
 import "../cubit/create_habit_cubit.dart";
 import "../habit_format.dart";
 import "../widgets/habit_preview_card.dart";
@@ -28,19 +30,29 @@ import "../widgets/weekday_picker.dart";
 /// "File a new habit" (P. 03 / 12). Composes a [HabitDraft] through
 /// [CreateHabitCubit]; the mock store stands in for Firestore until Phase 4.
 class CreateHabitPage extends StatelessWidget {
-  const CreateHabitPage({super.key});
+  const CreateHabitPage({super.key, this.habit});
+
+  final HabitEntry? habit;
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider<CreateHabitCubit>(
-      create: (_) => CreateHabitCubit(HabitsMockStore.instance),
-      child: const _CreateHabitView(),
+      create: (_) => CreateHabitCubit(
+        HabitsMockStore.instance,
+        repository: sl.isRegistered<HabitsRepository>()
+            ? sl<HabitsRepository>()
+            : null,
+        initialHabit: habit,
+      ),
+      child: _CreateHabitView(habit: habit),
     );
   }
 }
 
 class _CreateHabitView extends StatefulWidget {
-  const _CreateHabitView();
+  const _CreateHabitView({this.habit});
+
+  final HabitEntry? habit;
 
   @override
   State<_CreateHabitView> createState() => _CreateHabitViewState();
@@ -121,9 +133,15 @@ class _CreateHabitViewState extends State<_CreateHabitView> {
         BlocListener<CreateHabitCubit, CreateHabitState>(
           listenWhen: (previous, next) => !previous.filed && next.filed,
           listener: (context, state) {
-            _toast("Filed \u00b7 ${state.draft.name.trim()}");
+            _toast("Saved \u00b7 ${state.draft.name.trim()}");
             _close();
           },
+        ),
+        BlocListener<CreateHabitCubit, CreateHabitState>(
+          listenWhen: (previous, next) =>
+              previous.errorMessage != next.errorMessage &&
+              next.errorMessage != null,
+          listener: (context, state) => _toast(state.errorMessage!),
         ),
       ],
       child: Scaffold(
@@ -139,8 +157,10 @@ class _CreateHabitViewState extends State<_CreateHabitView> {
 
               return Column(
                 children: [
-                  const RecordHeader(
-                    label: "NEW ENTRY \u00b7 N\u00ba 0309",
+                  RecordHeader(
+                    label: widget.habit == null
+                        ? "NEW ENTRY \u00b7 N\u00ba 0309"
+                        : "EDIT ENTRY \u00b7 N\u00ba 0309",
                     page: "P. 03 / 12",
                   ),
                   Expanded(
@@ -152,7 +172,11 @@ class _CreateHabitViewState extends State<_CreateHabitView> {
                           trailing: draftLabel,
                         ),
                         const SizedBox(height: AppSpacing.s),
-                        const DisplayTitle("File a new\nhabit"),
+                        DisplayTitle(
+                          widget.habit == null
+                              ? "File a new\nhabit"
+                              : "Edit your\nhabit",
+                        ),
                         const SizedBox(height: AppSpacing.xl),
                         AppTextField(
                           label: "01 \u2014 Name",
@@ -161,8 +185,10 @@ class _CreateHabitViewState extends State<_CreateHabitView> {
                           textStyle: context.type.title.copyWith(fontSize: 22),
                           textCapitalization: TextCapitalization.sentences,
                           textInputAction: TextInputAction.done,
-                          errorText: state.showNameError && !draft.hasName
-                              ? "Give the habit a name"
+                          errorText: state.showNameError && !draft.nameIsValid
+                              ? (draft.hasName
+                                    ? "Use 80 characters or fewer"
+                                    : "Give the habit a name")
                               : null,
                           onChanged: cubit.setName,
                         ),
@@ -241,17 +267,24 @@ class _CreateHabitViewState extends State<_CreateHabitView> {
                       children: [
                         Expanded(
                           child: AppButton(
-                            label: "Save draft",
+                            label: widget.habit == null
+                                ? "Save draft"
+                                : "Cancel",
                             variant: AppButtonVariant.ghost,
                             showArrow: false,
-                            onPressed: cubit.saveDraft,
+                            onPressed: widget.habit == null
+                                ? cubit.saveDraft
+                                : _cancel,
                           ),
                         ),
                         const SizedBox(width: AppSpacing.s),
                         Expanded(
                           child: AppButton(
-                            label: "File habit",
-                            onPressed: cubit.file,
+                            label: widget.habit == null
+                                ? "File habit"
+                                : "Save changes",
+                            loading: state.filing,
+                            onPressed: cubit.fileHabit,
                           ),
                         ),
                       ],

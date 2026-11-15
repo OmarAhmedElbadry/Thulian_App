@@ -19,9 +19,8 @@ class FirebaseAuthRepository implements AuthRepository {
       _auth.currentUser == null ? null : _toDomain(_auth.currentUser!);
 
   @override
-  Stream<AuthUser?> get authStateChanges => _auth.authStateChanges().map(
-    (user) => user == null ? null : _toDomain(user),
-  );
+  Stream<AuthUser?> get authStateChanges =>
+      _auth.userChanges().map((user) => user == null ? null : _toDomain(user));
 
   @override
   Future<AuthUser> signInWithEmail({
@@ -61,6 +60,7 @@ class FirebaseAuthRepository implements AuthRepository {
       final user = credential.user;
       if (user == null) throw const AuthFailure("Account creation failed.");
       await user.updateDisplayName(name.trim());
+      await user.sendEmailVerification();
       await _syncProfile(user);
       return _toDomain(user);
     } on firebase.FirebaseAuthException catch (error) {
@@ -101,6 +101,29 @@ class FirebaseAuthRepository implements AuthRepository {
   Future<void> sendPasswordResetEmail(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email.trim());
+    } on firebase.FirebaseAuthException catch (error) {
+      throw AuthFailure(_messageFor(error.code), code: error.code);
+    }
+  }
+
+  @override
+  Future<void> sendEmailVerification() async {
+    final user = _auth.currentUser;
+    if (user == null) throw const AuthFailure("No signed-in account found.");
+    try {
+      await user.sendEmailVerification();
+    } on firebase.FirebaseAuthException catch (error) {
+      throw AuthFailure(_messageFor(error.code), code: error.code);
+    }
+  }
+
+  @override
+  Future<void> reloadCurrentUser() async {
+    final user = _auth.currentUser;
+    if (user == null) throw const AuthFailure("No signed-in account found.");
+    try {
+      await user.reload();
+      await user.getIdToken(true);
     } on firebase.FirebaseAuthException catch (error) {
       throw AuthFailure(_messageFor(error.code), code: error.code);
     }
@@ -149,6 +172,7 @@ class FirebaseAuthRepository implements AuthRepository {
     id: user.uid,
     email: user.email ?? "",
     displayName: user.displayName ?? "",
+    emailVerified: user.emailVerified,
     photoUrl: user.photoURL,
   );
 

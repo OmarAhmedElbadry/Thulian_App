@@ -6,6 +6,10 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == userId;
     }
 
+    function verifiedUser(userId) {
+      return signedInAs(userId) && request.auth.token.email_verified == true;
+    }
+
     function validProfile(data, userId) {
       return data.keys().hasOnly([
           'uid',
@@ -31,6 +35,105 @@ service cloud.firestore {
         && data.updatedAt is timestamp;
     }
 
+    function validStats(stats) {
+      return stats is map
+        && stats.keys().hasOnly([
+          'streakDays',
+          'bestStreak',
+          'totalCompletions',
+          'completionRate'
+        ])
+        && stats.keys().hasAll([
+          'streakDays',
+          'bestStreak',
+          'totalCompletions',
+          'completionRate'
+        ])
+        && stats.streakDays is int
+        && stats.bestStreak is int
+        && stats.totalCompletions is int
+        && stats.completionRate is int
+        && stats.streakDays >= 0
+        && stats.bestStreak >= 0
+        && stats.totalCompletions >= 0
+        && stats.completionRate >= 0
+        && stats.completionRate <= 100;
+    }
+
+    function validHabit(data) {
+      return data.keys().hasOnly([
+          'title',
+          'category',
+          'frequency',
+          'weeklyDays',
+          'reminderMinutes',
+          'targetMinutes',
+          'archived',
+          'stats',
+          'statsUpdatedAt',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasAll([
+          'title',
+          'category',
+          'frequency',
+          'weeklyDays',
+          'reminderMinutes',
+          'targetMinutes',
+          'archived',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.title is string
+        && data.title.size() > 0
+        && data.title.size() <= 80
+        && data.category in ['mind', 'body', 'work', 'social']
+        && data.frequency in ['daily', 'weekly']
+        && data.weeklyDays is list
+        && data.weeklyDays.size() <= 7
+        && data.weeklyDays.hasOnly([1, 2, 3, 4, 5, 6, 7])
+        && (data.frequency == 'daily' || data.weeklyDays.size() > 0)
+        && data.reminderMinutes is int
+        && data.reminderMinutes >= 0
+        && data.reminderMinutes < 1440
+        && data.targetMinutes is int
+        && data.targetMinutes >= 5
+        && data.targetMinutes <= 240
+        && data.archived is bool
+        && (!data.keys().hasAny(['stats', 'statsUpdatedAt'])
+          || (data.keys().hasAll(['stats', 'statsUpdatedAt'])
+            && validStats(data.stats)
+            && data.statsUpdatedAt is timestamp))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function validCompletion(data, dateKey) {
+      return data.keys().hasOnly([
+          'dateKey',
+          'timezoneOffsetMinutes',
+          'completedAt'
+        ])
+        && data.keys().hasAll([
+          'dateKey',
+          'timezoneOffsetMinutes',
+          'completedAt'
+        ])
+        && data.dateKey == dateKey
+        && dateKey.size() == 10
+        && dateKey.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && data.timezoneOffsetMinutes is int
+        && data.timezoneOffsetMinutes >= -720
+        && data.timezoneOffsetMinutes <= 840
+        && data.completedAt is timestamp;
+    }
+
+    function activeHabit(userId, habitId) {
+      let habitPath = /databases/$(database)/documents/users/$(userId)/habits/$(habitId);
+      return exists(habitPath) && get(habitPath).data.archived == false;
+    }
+
     match /users/{userId} {
       allow get: if signedInAs(userId);
       allow list: if false;
@@ -44,6 +147,41 @@ service cloud.firestore {
         && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.updatedAt == request.time;
       allow delete: if false;
+
+      match /habits/{habitId} {
+        allow get, list: if verifiedUser(userId);
+        allow create: if verifiedUser(userId)
+          && validHabit(request.resource.data)
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.updatedAt == request.time
+          && validStats(request.resource.data.stats)
+          && request.resource.data.stats.streakDays == 0
+          && request.resource.data.stats.bestStreak == 0
+          && request.resource.data.stats.totalCompletions == 0
+          && request.resource.data.stats.completionRate == 0
+          && request.resource.data.statsUpdatedAt == request.time;
+        allow update: if verifiedUser(userId)
+          && validHabit(request.resource.data)
+          && request.resource.data.createdAt == resource.data.createdAt
+          && (resource.data.keys().hasAny(['stats', 'statsUpdatedAt'])
+            ? request.resource.data.stats == resource.data.stats
+              && request.resource.data.statsUpdatedAt == resource.data.statsUpdatedAt
+            : !request.resource.data.keys().hasAny(['stats', 'statsUpdatedAt']))
+          && request.resource.data.updatedAt == request.time;
+        allow delete: if false;
+
+        match /completions/{dateKey} {
+          allow get, list: if verifiedUser(userId)
+            && activeHabit(userId, habitId);
+          allow create: if verifiedUser(userId)
+            && activeHabit(userId, habitId)
+            && validCompletion(request.resource.data, dateKey)
+            && request.resource.data.completedAt == request.time;
+          allow update: if false;
+          allow delete: if verifiedUser(userId)
+            && activeHabit(userId, habitId);
+        }
+      }
     }
 
     match /{document=**} {

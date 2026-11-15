@@ -63,7 +63,12 @@ class HabitEntry {
     return "$cat · $count× WEEKLY";
   }
 
-  HabitEntry copyWith({List<bool>? weekCompletions}) {
+  HabitEntry copyWith({
+    List<bool>? weekCompletions,
+    List<bool>? historyGrid,
+    int? totalCompletions,
+    int? completionRate,
+  }) {
     return HabitEntry(
       id: id,
       title: title,
@@ -72,10 +77,10 @@ class HabitEntry {
       weeklyDays: weeklyDays,
       streakDays: streakDays,
       weekCompletions: weekCompletions ?? this.weekCompletions,
-      historyGrid: historyGrid,
+      historyGrid: historyGrid ?? this.historyGrid,
       bestStreak: bestStreak,
-      totalCompletions: totalCompletions,
-      completionRate: completionRate,
+      totalCompletions: totalCompletions ?? this.totalCompletions,
+      completionRate: completionRate ?? this.completionRate,
       reminderMinutes: reminderMinutes,
       targetMinutes: targetMinutes,
     );

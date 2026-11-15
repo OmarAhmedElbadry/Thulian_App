@@ -2,6 +2,8 @@ abstract final class AppRoutes {
   static const onboarding = "/onboarding";
   static const home = "/home";
   static const habits = "/habits";
+  static const habitNew = "/habits/new";
+  static String habitEditPath(String id) => "/habits/$id/edit";
   static const rooms = "/rooms";
   static const notes = "/notes";
   static const noteNew = "/notes/new";
@@ -13,6 +15,7 @@ abstract final class AppRoutes {
   static const authSignIn = "/auth/sign-in";
   static const authCreateAccount = "/auth/create-account";
   static const authRecover = "/auth/recover";
+  static const authVerifyEmail = "/auth/verify-email";
 
   /// Debug-only design token and component preview.
   static const designCheck = "/dev/design";
