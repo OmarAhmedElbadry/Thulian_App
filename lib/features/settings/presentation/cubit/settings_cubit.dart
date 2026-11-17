@@ -1,13 +1,17 @@
 import "package:flutter_bloc/flutter_bloc.dart";
 
 import "../../../../core/services/key_value_store.dart";
+import "../../../../core/services/habit_reminder_service.dart";
 import "../../domain/entities/app_settings.dart";
 
 /// Holds and persists [AppSettings] through the local key-value store.
 class SettingsCubit extends Cubit<AppSettings> {
-  SettingsCubit(KeyValueStore store) : _store = store, super(_load(store));
+  SettingsCubit(KeyValueStore store, {this.reminders})
+    : _store = store,
+      super(_load(store));
 
   final KeyValueStore _store;
+  final HabitReminderService? reminders;
 
   static const dailyReminderKey = "settings_daily_reminder";
   static const roomInvitationsKey = "settings_room_invitations";
@@ -19,7 +23,9 @@ class SettingsCubit extends Cubit<AppSettings> {
     const defaults = AppSettings();
     return AppSettings(
       dailyReminder:
-          store.read<bool>(dailyReminderKey) ?? defaults.dailyReminder,
+          store.read<bool>(dailyReminderKey) ??
+          store.read<bool>("notifications_enabled") ??
+          defaults.dailyReminder,
       roomInvitations:
           store.read<bool>(roomInvitationsKey) ?? defaults.roomInvitations,
       weeklyDigest: store.read<bool>(weeklyDigestKey) ?? defaults.weeklyDigest,
@@ -33,8 +39,14 @@ class SettingsCubit extends Cubit<AppSettings> {
     await _store.write(key, value);
   }
 
-  Future<void> setDailyReminder(bool value) =>
-      _set(dailyReminderKey, value, state.copyWith(dailyReminder: value));
+  Future<bool> setDailyReminder(bool value) async {
+    if (value && reminders != null && !await reminders!.requestPermission()) {
+      return false;
+    }
+    await _set(dailyReminderKey, value, state.copyWith(dailyReminder: value));
+    if (reminders != null) await reminders!.syncFromRepository();
+    return true;
+  }
 
   Future<void> setRoomInvitations(bool value) =>
       _set(roomInvitationsKey, value, state.copyWith(roomInvitations: value));

@@ -1,14 +1,17 @@
 import "package:flutter/material.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 
+import "../../../../core/services/habit_reminder_service.dart";
 import "../../domain/entities/onboarding_draft.dart";
 import "../../domain/usecases/complete_onboarding.dart";
 import "onboarding_state.dart";
 
 class OnboardingCubit extends Cubit<OnboardingState> {
-  OnboardingCubit(this._completeOnboarding) : super(const OnboardingState());
+  OnboardingCubit(this._completeOnboarding, {this.reminders})
+    : super(const OnboardingState());
 
   final CompleteOnboarding _completeOnboarding;
+  final HabitReminderService? reminders;
 
   void next() {
     switch (state.step) {
@@ -65,12 +68,16 @@ class OnboardingCubit extends Cubit<OnboardingState> {
     emit(state.copyWith(submitting: true, saveError: false));
     final reminder = state.reminder;
     try {
+      var notificationsEnabled = state.notificationsEnabled;
+      if (notificationsEnabled && reminders != null) {
+        notificationsEnabled = await reminders!.requestPermission();
+      }
       await _completeOnboarding(
         OnboardingDraft(
           displayName: state.displayName.trim(),
           goalIds: state.selectedGoalIds,
           reminderMinutes: reminder.hour * 60 + reminder.minute,
-          notificationsEnabled: state.notificationsEnabled,
+          notificationsEnabled: notificationsEnabled,
         ),
       );
       if (isClosed) return;

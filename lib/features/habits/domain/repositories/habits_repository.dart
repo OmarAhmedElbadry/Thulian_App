@@ -12,5 +12,9 @@ abstract interface class HabitsRepository {
 
   Stream<List<DateTime>> watchCompletions(String habitId);
 
-  Future<void> toggleCompletion(String habitId, DateTime date);
+  Future<void> setCompletion(
+    String habitId,
+    DateTime date, {
+    required bool completed,
+  });
 }

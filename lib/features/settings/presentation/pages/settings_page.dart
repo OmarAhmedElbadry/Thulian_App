@@ -112,11 +112,22 @@ class _SettingsView extends StatelessWidget {
                   ),
                   SettingsRow(
                     title: "Daily reminder",
-                    subtitle: "21:30 \u00b7 daily",
+                    subtitle: "At each habit's reminder time",
                     trailing: AppToggle(
                       semanticLabel: "Daily reminder",
                       value: state.dailyReminder,
-                      onChanged: settings.setDailyReminder,
+                      onChanged: (value) async {
+                        final enabled = await settings.setDailyReminder(value);
+                        if (!enabled && context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                "Allow notifications to turn on habit reminders.",
+                              ),
+                            ),
+                          );
+                        }
+                      },
                     ),
                   ),
                   SettingsRow(

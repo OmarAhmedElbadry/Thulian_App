@@ -6,12 +6,11 @@ import "../../../../core/theme/theme_extensions.dart";
 import "../../../../core/theme/tokens/app_spacing.dart";
 import "../dashboard_format.dart";
 
-/// The three-cell stat band under the habit list: streak, focus and week.
+/// The stat band under the habit list: focus and weekly habit activity.
 /// Ink rules top and bottom, hairline dividers, and a seven-bar week chart.
 class StatStrip extends StatelessWidget {
   const StatStrip({
     super.key,
-    required this.streakDays,
     required this.focusMinutes,
     required this.weekDone,
     required this.weekTotal,
@@ -19,7 +18,6 @@ class StatStrip extends StatelessWidget {
     required this.weekHighlightIndex,
   });
 
-  final int streakDays;
   final int focusMinutes;
   final int weekDone;
   final int weekTotal;
@@ -41,14 +39,6 @@ class StatStrip extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(
-              flex: 100,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: _StreakCell(streakDays: streakDays),
-              ),
-            ),
-            Container(width: 1, color: c.hairline),
             Expanded(
               flex: 124,
               child: Padding(
@@ -86,44 +76,6 @@ class _Label extends StatelessWidget {
     return Text(
       text,
       style: context.type.metaSmall.copyWith(color: context.colors.inkMuted),
-    );
-  }
-}
-
-class _StreakCell extends StatelessWidget {
-  const _StreakCell({required this.streakDays});
-
-  final int streakDays;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _Label("02 \u2014 STREAK"),
-        const SizedBox(height: 4),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                "$streakDays",
-                style: context.type.stat.copyWith(fontSize: 34),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                "days",
-                style: context.type.bodySmall.copyWith(color: c.inkMuted),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

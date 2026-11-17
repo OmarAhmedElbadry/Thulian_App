@@ -1,7 +1,11 @@
+import "dart:async";
+
 import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
+import "package:flutter/services.dart";
 import "package:go_router/go_router.dart";
 
+import "../../../../core/di/injection.dart";
 import "../../../../core/router/app_routes.dart";
 import "../../../../core/theme/theme_extensions.dart";
 import "../../../../core/theme/tokens/app_sizes.dart";
@@ -11,8 +15,12 @@ import "../../../../core/widgets/hairline_divider.dart";
 import "../../../../core/widgets/record_header.dart";
 import "../../../../core/widgets/reveal.dart";
 import "../../../../core/widgets/section_header.dart";
+import "../../../auth/domain/repositories/auth_repository.dart";
 import "../../data/dashboard_mock_data.dart";
 import "../../domain/entities/dashboard_snapshot.dart";
+import "../../../habits/domain/entities/habit_entry.dart";
+import "../../../habits/domain/repositories/habits_repository.dart";
+import "../../../habits/domain/usecases/set_habit_completion.dart";
 import "../dashboard_format.dart";
 import "../widgets/completion_block.dart";
 import "../widgets/habit_brief_row.dart";
@@ -48,26 +56,135 @@ class _HomePageState extends State<HomePage> {
   static const _activeState = 4;
 
   late List<HabitBrief> _habits;
+  late final bool _useRepository;
+  List<HabitEntry> _habitEntries = const [];
+  final Map<String, Set<String>> _completionKeys = {};
+  final Map<String, StreamSubscription<List<DateTime>>> _completionStreams = {};
+  StreamSubscription<List<HabitEntry>>? _habitsStream;
 
   @override
   void initState() {
     super.initState();
-    _habits = [...widget.data.habits];
+    _useRepository = sl.isRegistered<HabitsRepository>();
+    _habits = _useRepository ? const [] : [...widget.data.habits];
+    if (_useRepository) _listenToHabits();
   }
 
   @override
   void didUpdateWidget(covariant HomePage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.data != widget.data) {
+    if (!_useRepository && oldWidget.data != widget.data) {
       _habits = [...widget.data.habits];
     }
   }
 
+  @override
+  void dispose() {
+    final habitsStream = _habitsStream;
+    if (habitsStream != null) unawaited(habitsStream.cancel());
+    for (final subscription in _completionStreams.values) {
+      unawaited(subscription.cancel());
+    }
+    super.dispose();
+  }
+
+  void _listenToHabits() {
+    final repository = sl<HabitsRepository>();
+    _habitsStream = repository.watchHabits().listen(
+      (habits) {
+        _habitEntries = habits;
+        _syncCompletionStreams(repository, habits);
+        if (!mounted) return;
+        setState(_refreshBriefs);
+      },
+      onError: (Object error) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Could not load habits: $error")),
+        );
+      },
+    );
+  }
+
+  void _syncCompletionStreams(
+    HabitsRepository repository,
+    List<HabitEntry> habits,
+  ) {
+    final ids = habits.map((habit) => habit.id).toSet();
+    for (final id in _completionStreams.keys.toList()) {
+      if (ids.contains(id)) continue;
+      final subscription = _completionStreams.remove(id);
+      if (subscription != null) unawaited(subscription.cancel());
+      _completionKeys.remove(id);
+    }
+    for (final habit in habits) {
+      if (_completionStreams.containsKey(habit.id)) continue;
+      _completionStreams[habit.id] = repository
+          .watchCompletions(habit.id)
+          .listen((dates) {
+            _completionKeys[habit.id] = dates.map(_dateKey).toSet();
+            if (mounted) setState(_refreshBriefs);
+          }, onError: (Object _) {});
+    }
+  }
+
+  void _refreshBriefs() {
+    final today = _dateKey(widget.now ?? DateTime.now());
+    _habits = [
+      for (final habit in _habitEntries)
+        HabitBrief(
+          id: habit.id,
+          title: habit.title,
+          streakDays: 0,
+          done: _completionKeys[habit.id]?.contains(today) ?? false,
+        ),
+    ];
+  }
+
+  String _dateKey(DateTime date) =>
+      "${date.year.toString().padLeft(4, '0')}-"
+      "${date.month.toString().padLeft(2, '0')}-"
+      "${date.day.toString().padLeft(2, '0')}";
+
   void _toggleHabit(String id) {
     final index = _habits.indexWhere((habit) => habit.id == id);
     if (index == -1) return;
+    if (!_habits[index].done) HapticFeedback.selectionClick();
+    if (_useRepository) {
+      unawaited(_setPersistedHabit(id, completed: !_habits[index].done));
+      return;
+    }
     setState(() {
       _habits[index] = _habits[index].copyWith(done: !_habits[index].done);
+    });
+  }
+
+  Future<void> _setPersistedHabit(String id, {required bool completed}) async {
+    try {
+      await sl<SetHabitCompletion>()(
+        habitId: id,
+        date: widget.now ?? DateTime.now(),
+        completed: completed,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Could not save completion: $error")),
+      );
+    }
+  }
+
+  List<int> _liveWeekActivity() {
+    final now = widget.now ?? DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final monday = today.subtract(Duration(days: today.weekday - 1));
+    if (_habitEntries.isEmpty) return List<int>.filled(7, 0);
+    return List<int>.generate(7, (index) {
+      final day = _dateKey(monday.add(Duration(days: index)));
+      final done = _habitEntries
+          .where((habit) => _completionKeys[habit.id]?.contains(day) ?? false)
+          .length;
+      return (done * 100 / _habitEntries.length).round();
     });
   }
 
@@ -76,6 +193,19 @@ class _HomePageState extends State<HomePage> {
     final c = context.colors;
     final now = widget.now ?? DateTime.now();
     final data = widget.data;
+    final user = _useRepository ? sl<AuthRepository>().currentUser : null;
+    final displayName = user?.displayName.trim().isNotEmpty == true
+        ? user!.displayName
+        : user?.email.split("@").first ?? data.displayName;
+    final weekActivity = _useRepository
+        ? _liveWeekActivity()
+        : data.weekActivity;
+    final weekDone = _useRepository
+        ? weekActivity.where((activity) => activity > 0).length
+        : data.weekDone;
+    final weekHighlightIndex = _useRepository
+        ? now.weekday - 1
+        : data.weekHighlightIndex;
     final completed = _habits.where((habit) => habit.done).length;
     final percent = _habits.isEmpty
         ? 0
@@ -121,7 +251,7 @@ class _HomePageState extends State<HomePage> {
                               style: context.type.display.copyWith(height: 1),
                               children: [
                                 TextSpan(text: "${greetingFor(now)},\n"),
-                                TextSpan(text: data.displayName),
+                                TextSpan(text: displayName),
                                 TextSpan(
                                   text: ".",
                                   style: TextStyle(color: c.accent),
@@ -197,12 +327,11 @@ class _HomePageState extends State<HomePage> {
                       ),
                     const SizedBox(height: 20),
                     StatStrip(
-                      streakDays: data.streakDays,
                       focusMinutes: data.focusMinutes,
-                      weekDone: data.weekDone,
+                      weekDone: weekDone,
                       weekTotal: data.weekTotal,
-                      weekActivity: data.weekActivity,
-                      weekHighlightIndex: data.weekHighlightIndex,
+                      weekActivity: weekActivity,
+                      weekHighlightIndex: weekHighlightIndex,
                     ),
                     const SizedBox(height: 20),
                     Row(

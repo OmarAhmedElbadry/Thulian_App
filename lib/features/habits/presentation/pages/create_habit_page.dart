@@ -4,6 +4,7 @@ import "package:go_router/go_router.dart";
 
 import "../../../../core/di/injection.dart";
 import "../../../../core/router/app_routes.dart";
+import "../../../../core/services/habit_reminder_service.dart";
 import "../../../../core/theme/theme_extensions.dart";
 import "../../../../core/theme/tokens/app_spacing.dart";
 import "../../../../core/utils/format.dart";
@@ -42,6 +43,9 @@ class CreateHabitPage extends StatelessWidget {
         repository: sl.isRegistered<HabitsRepository>()
             ? sl<HabitsRepository>()
             : null,
+        reminders: sl.isRegistered<HabitReminderService>()
+            ? sl<HabitReminderService>()
+            : null,
         initialHabit: habit,
       ),
       child: _CreateHabitView(habit: habit),
@@ -60,6 +64,7 @@ class _CreateHabitView extends StatefulWidget {
 
 class _CreateHabitViewState extends State<_CreateHabitView> {
   late final TextEditingController _name;
+  bool _deleting = false;
 
   @override
   void initState() {
@@ -97,6 +102,32 @@ class _CreateHabitViewState extends State<_CreateHabitView> {
       if (discard != true || !mounted) return;
     }
     _close();
+  }
+
+  Future<void> _deleteHabit() async {
+    final habit = widget.habit;
+    if (habit == null || _deleting) return;
+    final confirmed = await showAppDialog(
+      context,
+      recordLabel: "Habit · ${habit.title}",
+      title: "Delete this habit?",
+      message:
+          "It will leave your active register. Its completion history will be kept.",
+      confirmLabel: "Delete",
+      cancelLabel: "Keep habit",
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _deleting = true);
+    try {
+      await context.read<CreateHabitCubit>().deleteHabit();
+      if (!mounted) return;
+      _toast("Habit deleted.");
+      _close();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _deleting = false);
+      _toast("Could not delete this habit: $error");
+    }
   }
 
   Future<void> _pickReminder(int currentMinutes) async {
@@ -269,12 +300,15 @@ class _CreateHabitViewState extends State<_CreateHabitView> {
                           child: AppButton(
                             label: widget.habit == null
                                 ? "Save draft"
-                                : "Cancel",
+                                : "Delete",
                             variant: AppButtonVariant.ghost,
                             showArrow: false,
                             onPressed: widget.habit == null
                                 ? cubit.saveDraft
-                                : _cancel,
+                                : _deleting
+                                ? null
+                                : _deleteHabit,
+                            loading: _deleting,
                           ),
                         ),
                         const SizedBox(width: AppSpacing.s),

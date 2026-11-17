@@ -6,7 +6,7 @@ import "../../../../core/widgets/square_checkbox.dart";
 import "../../domain/entities/dashboard_snapshot.dart";
 import "../dashboard_format.dart";
 
-/// A habit line on the dashboard: index, checkbox, title and streak/status.
+/// A habit line on the dashboard: index, checkbox, title and status.
 /// Tapping anywhere on the row files or unfiles the habit; the title softly
 /// strikes through when done.
 class HabitBriefRow extends StatelessWidget {
@@ -25,7 +25,7 @@ class HabitBriefRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     final done = habit.done;
-    final status = done ? "STR ${habit.streakDays}" : "PENDING";
+    final status = done ? "FILED" : "PENDING";
     final titleStyle = context.type.title.copyWith(
       fontSize: 17,
       color: done ? c.inkMuted : c.ink,
@@ -38,7 +38,7 @@ class HabitBriefRow extends StatelessWidget {
       button: true,
       checked: done,
       label: habit.title,
-      hint: done ? "Streak ${habit.streakDays} days" : "Pending",
+      hint: done ? "Completed today" : "Pending today",
       child: InkWell(
         onTap: onToggle,
         child: ExcludeSemantics(
@@ -57,7 +57,11 @@ class HabitBriefRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 5),
-                SquareCheckbox(value: done, onChanged: (_) => onToggle()),
+                // The full row owns the tap target; a second handler here
+                // would toggle twice when the checkbox is tapped.
+                IgnorePointer(
+                  child: SquareCheckbox(value: done, onChanged: (_) {}),
+                ),
                 const SizedBox(width: 11),
                 Expanded(
                   child: AnimatedDefaultTextStyle(

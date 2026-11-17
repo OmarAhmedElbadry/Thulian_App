@@ -1,6 +1,7 @@
 import "package:flutter/foundation.dart";
 import "package:flutter_bloc/flutter_bloc.dart";
 
+import "../../../../core/services/habit_reminder_service.dart";
 import "../../data/habits_mock_store.dart";
 import "../../domain/entities/habit_draft.dart";
 import "../../domain/entities/habit_entry.dart";
@@ -64,6 +65,7 @@ class CreateHabitCubit extends Cubit<CreateHabitState> {
   CreateHabitCubit(
     HabitsMockStore store, {
     this.repository,
+    this.reminders,
     HabitEntry? initialHabit,
   }) : _store = store,
        _habitId = initialHabit?.id,
@@ -79,6 +81,7 @@ class CreateHabitCubit extends Cubit<CreateHabitState> {
   final HabitsMockStore _store;
   final String? _habitId;
   final HabitsRepository? repository;
+  final HabitReminderService? reminders;
 
   void _edit(HabitDraft draft) {
     emit(state.copyWith(draft: draft, dirty: true));
@@ -152,6 +155,11 @@ class CreateHabitCubit extends Cubit<CreateHabitState> {
       } else {
         await habitsRepository.updateHabit(_habitId, state.draft);
       }
+      try {
+        await reminders?.syncFromRepository();
+      } catch (_) {
+        // A reminder scheduling issue should not undo a saved habit.
+      }
       _store.clearDraft();
       emit(state.copyWith(filing: false, filed: true, dirty: false));
     } catch (_) {
@@ -163,5 +171,25 @@ class CreateHabitCubit extends Cubit<CreateHabitState> {
         ),
       );
     }
+  }
+
+  /// Removes an edited habit from the active register while keeping its
+  /// completion history available in the repository.
+  Future<void> deleteHabit() async {
+    final habitId = _habitId;
+    if (habitId == null) return;
+    final habitsRepository = repository;
+    if (habitsRepository != null) {
+      await habitsRepository.archiveHabit(habitId);
+      try {
+        await reminders?.syncFromRepository();
+      } catch (_) {
+        // The habit remains archived even if reminder cleanup fails.
+      }
+      return;
+    }
+    _store.habits.value = _store.habits.value
+        .where((habit) => habit.id != habitId)
+        .toList();
   }
 }

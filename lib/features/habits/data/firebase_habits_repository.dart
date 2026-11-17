@@ -86,7 +86,11 @@ class FirebaseHabitsRepository implements HabitsRepository {
   }
 
   @override
-  Future<void> toggleCompletion(String habitId, DateTime date) async {
+  Future<void> setCompletion(
+    String habitId,
+    DateTime date, {
+    required bool completed,
+  }) async {
     final day = DateTime(date.year, date.month, date.day);
     final dateKey =
         "${day.year.toString().padLeft(4, '0')}-"
@@ -97,17 +101,14 @@ class FirebaseHabitsRepository implements HabitsRepository {
         .collection("completions")
         .doc(dateKey);
 
-    await _firestore.runTransaction((transaction) async {
-      final snapshot = await transaction.get(completion);
-      if (snapshot.exists) {
-        transaction.delete(completion);
-      } else {
-        transaction.set(completion, {
-          "dateKey": dateKey,
-          "completedAt": FieldValue.serverTimestamp(),
-        });
-      }
-    });
+    if (completed) {
+      await completion.set({
+        "dateKey": dateKey,
+        "completedAt": FieldValue.serverTimestamp(),
+      });
+    } else {
+      await completion.delete();
+    }
   }
 
   Map<String, Object?> _draftData(HabitDraft draft) => {

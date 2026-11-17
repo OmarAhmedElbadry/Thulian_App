@@ -15,14 +15,14 @@ class HabitRow extends StatelessWidget {
     required this.habit,
     this.onTap,
     this.todayIndex = -1,
-    this.onToggleToday,
+    this.onSetTodayCompletion,
   });
 
   final int index;
   final HabitEntry habit;
   final VoidCallback? onTap;
   final int todayIndex;
-  final VoidCallback? onToggleToday;
+  final ValueChanged<bool>? onSetTodayCompletion;
 
   @override
   Widget build(BuildContext context) {
@@ -78,7 +78,7 @@ class HabitRow extends StatelessWidget {
               CompletionDots(
                 completions: habit.weekCompletions,
                 todayIndex: todayIndex,
-                onToggleToday: onToggleToday,
+                onSetTodayCompletion: onSetTodayCompletion,
               ),
             ],
           ),

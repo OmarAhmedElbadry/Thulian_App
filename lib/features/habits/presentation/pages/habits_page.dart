@@ -18,6 +18,7 @@ import "../../../../core/widgets/section_header.dart";
 import "../../data/habits_mock_data.dart";
 import "../../domain/entities/habit_entry.dart";
 import "../../domain/repositories/habits_repository.dart";
+import "../../domain/usecases/set_habit_completion.dart";
 import "../widgets/habit_row.dart";
 import "../widgets/habit_stats_row.dart";
 import "../widgets/history_grid.dart";
@@ -140,37 +141,36 @@ class _HabitsPageState extends State<HabitsPage> {
                       strong: true,
                     ),
 
-                    // ── First habit (expanded with history + stats) ──
+                    // Show the full history and stats for every habit.
                     if (habits.isNotEmpty) ...[
-                      _watchHabit(habits[0], today, (habit) {
-                        void edit() {
-                          context.push(
+                      for (var i = 0; i < habits.length; i++)
+                        _watchHabit(habits[i], today, (habit) {
+                          void edit() => context.push(
                             AppRoutes.habitEditPath(habit.id),
                             extra: habit,
                           );
-                        }
 
-                        return Column(
-                          children: [
-                            _habitRow(habit, 1, todayIndex, onEdit: edit),
-                            Padding(
-                              padding: const EdgeInsets.only(
-                                left: 32,
-                                bottom: AppSpacing.l,
+                          return Column(
+                            children: [
+                              _habitRow(habit, i + 1, todayIndex, onEdit: edit),
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  left: 32,
+                                  bottom: AppSpacing.l,
+                                ),
+                                child: HistoryGrid(grid: habit.historyGrid),
                               ),
-                              child: HistoryGrid(grid: habit.historyGrid),
-                            ),
-                            const SizedBox(height: AppSpacing.s),
-                            HabitStatsRow(
-                              totalCompletions: habit.totalCompletions,
-                              completionRate: habit.completionRate,
-                              onEdit: edit,
-                            ),
-                            const SizedBox(height: AppSpacing.l),
-                            const HairlineDivider(strong: true),
-                          ],
-                        );
-                      }),
+                              const SizedBox(height: AppSpacing.s),
+                              HabitStatsRow(
+                                totalCompletions: habit.totalCompletions,
+                                completionRate: habit.completionRate,
+                                onEdit: edit,
+                              ),
+                              const SizedBox(height: AppSpacing.l),
+                              const HairlineDivider(strong: true),
+                            ],
+                          );
+                        }),
                     ] else ...[
                       EmptyState(
                         title: "Your register is ready.",
@@ -180,21 +180,6 @@ class _HabitsPageState extends State<HabitsPage> {
                         onAction: () => context.push(AppRoutes.habitNew),
                       ),
                     ],
-                    // ── Remaining habits ──
-                    for (var i = 1; i < habits.length; i++)
-                      _watchHabit(
-                        habits[i],
-                        today,
-                        (habit) => _habitRow(
-                          habit,
-                          i + 1,
-                          todayIndex,
-                          onEdit: () => context.push(
-                            AppRoutes.habitEditPath(habit.id),
-                            extra: habit,
-                          ),
-                        ),
-                      ),
                   ],
                 ),
               ),
@@ -279,14 +264,18 @@ class _HabitsPageState extends State<HabitsPage> {
     habit: habit,
     onTap: onEdit,
     todayIndex: todayIndex,
-    onToggleToday: sl.isRegistered<HabitsRepository>()
-        ? () => _toggleToday(habit)
+    onSetTodayCompletion: sl.isRegistered<SetHabitCompletion>()
+        ? (completed) => _setTodayCompletion(habit, completed)
         : null,
   );
 
-  Future<void> _toggleToday(HabitEntry habit) async {
+  Future<void> _setTodayCompletion(HabitEntry habit, bool completed) async {
     try {
-      await sl<HabitsRepository>().toggleCompletion(habit.id, DateTime.now());
+      await sl<SetHabitCompletion>()(
+        habitId: habit.id,
+        date: DateTime.now(),
+        completed: completed,
+      );
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(

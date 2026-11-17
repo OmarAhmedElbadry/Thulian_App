@@ -15,6 +15,7 @@ import "../../features/habits/presentation/pages/habits_page.dart";
 import "../../features/habits/presentation/pages/create_habit_page.dart";
 import "../../features/notes/presentation/pages/notes_page.dart";
 import "../../features/notes/presentation/pages/note_editor_page.dart";
+import "../../features/notes/domain/entities/note.dart";
 import "../../features/habits/domain/entities/habit_entry.dart";
 import "../../features/onboarding/presentation/pages/onboarding_page.dart";
 import "../../features/profile/presentation/pages/profile_page.dart";
@@ -99,8 +100,10 @@ GoRouter buildRouter({
       ),
       GoRoute(
         path: "/notes/:noteId",
-        builder: (context, state) =>
-            NoteEditorPage(noteId: state.pathParameters["noteId"]!),
+        builder: (context, state) => NoteEditorPage(
+          noteId: state.pathParameters["noteId"]!,
+          initialNote: state.extra is Note ? state.extra! as Note : null,
+        ),
       ),
       GoRoute(
         path: AppRoutes.roomSessionPath(":roomId"),

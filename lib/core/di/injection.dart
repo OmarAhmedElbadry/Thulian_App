@@ -9,6 +9,9 @@ import "../../features/auth/domain/repositories/auth_repository.dart";
 import "../../features/auth/presentation/cubit/auth_cubit.dart";
 import "../../features/habits/data/firebase_habits_repository.dart";
 import "../../features/habits/domain/repositories/habits_repository.dart";
+import "../../features/habits/domain/usecases/set_habit_completion.dart";
+import "../../features/notes/data/firebase_notes_repository.dart";
+import "../../features/notes/domain/repositories/notes_repository.dart";
 import "../../features/onboarding/data/onboarding_local_datasource.dart";
 import "../../features/onboarding/data/onboarding_repository_impl.dart";
 import "../../features/onboarding/domain/repositories/onboarding_repository.dart";
@@ -17,6 +20,7 @@ import "../../features/onboarding/domain/usecases/is_onboarding_complete.dart";
 import "../../features/onboarding/presentation/cubit/onboarding_cubit.dart";
 import "../../features/settings/presentation/cubit/settings_cubit.dart";
 import "../router/app_router.dart";
+import "../services/habit_reminder_service.dart";
 import "../services/key_value_store.dart";
 import "../theme/theme_cubit.dart";
 
@@ -33,6 +37,16 @@ Future<void> configureDependencies() async {
       () =>
           FirebaseHabitsRepository(sl<FirebaseFirestore>(), sl<FirebaseAuth>()),
     )
+    ..registerLazySingleton<SetHabitCompletion>(
+      () => SetHabitCompletion(sl<HabitsRepository>()),
+    )
+    ..registerLazySingleton<HabitReminderService>(
+      () => HabitReminderService(sl<HabitsRepository>(), sl<KeyValueStore>()),
+    )
+    ..registerLazySingleton<NotesRepository>(
+      () =>
+          FirebaseNotesRepository(sl<FirebaseFirestore>(), sl<FirebaseAuth>()),
+    )
     ..registerLazySingleton<AuthRepository>(
       () => FirebaseAuthRepository(
         sl<FirebaseAuth>(),
@@ -43,7 +57,10 @@ Future<void> configureDependencies() async {
     ..registerLazySingleton<AuthCubit>(() => AuthCubit(sl<AuthRepository>()))
     ..registerSingleton<ThemeCubit>(ThemeCubit(sl<KeyValueStore>()))
     ..registerLazySingleton<SettingsCubit>(
-      () => SettingsCubit(sl<KeyValueStore>()),
+      () => SettingsCubit(
+        sl<KeyValueStore>(),
+        reminders: sl<HabitReminderService>(),
+      ),
     )
     ..registerLazySingleton<OnboardingLocalDataSource>(
       () => OnboardingLocalDataSource(sl<KeyValueStore>()),
@@ -58,7 +75,10 @@ Future<void> configureDependencies() async {
       () => CompleteOnboarding(sl<OnboardingRepository>()),
     )
     ..registerFactory<OnboardingCubit>(
-      () => OnboardingCubit(sl<CompleteOnboarding>()),
+      () => OnboardingCubit(
+        sl<CompleteOnboarding>(),
+        reminders: sl<HabitReminderService>(),
+      ),
     )
     ..registerLazySingleton<GoRouter>(
       () => buildRouter(
